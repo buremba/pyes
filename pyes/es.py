@@ -1033,6 +1033,31 @@ class ES(object):
 
         path = make_path(index, doc_type, id)
         return self._send_request(request_method, path, doc, querystring_args)
+        
+    def bulkUpdate(self, doc, index, doc_type, id=None, parent=None, force_insert=False, version=None, querystring_args=None):
+        """
+        Index a typed JSON document into a specific index and make it searchable.
+        """
+        if querystring_args is None:
+            querystring_args = {}
+
+        if bulk:
+            cmd = {"index": {"_index": index, "_type": doc_type}}
+            if parent:
+                cmd["index"]['_parent'] = parent
+            if version:
+                cmd["index"]['_version'] = version
+            if 'routing' in querystring_args:
+                cmd["index"]['_routing'] = querystring_args['routing']
+            if id is not None:  #None to support 0 as id
+                cmd["index"]['_id'] = id
+            cmd["index"]['doc_as_upsert'] = True
+
+            if isinstance(doc, dict):
+                doc = json.dumps(doc, cls=self.encoder)
+            command = "%s\n%s" % (json.dumps(cmd, cls=self.encoder), doc)
+            self.bulker.add(command)
+            return self.flush_bulk()
 
     @deprecated(deprecation="0.19.1", removal="0.20", alternative="[self].indices.stats")
     def index_stats(self, indices=None):
